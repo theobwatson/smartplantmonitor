@@ -1,0 +1,72 @@
+#include <ESP8266WiFi.h>
+#include <WiFiClientSecure.h>
+#include <WiFiUdp.h>
+#include <NTPClient.h>
+#include <ESP8266HTTPClient.h>
+
+const char* ssid     = "****"; // wifi ssid
+const char* password = "****"; // wifi password
+const char* scriptUrl = "https://script.google.com/macros/s/****/exec"; // appscript URL
+
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 12*3600, 60000);
+
+// format timestamp as YYYY-MM-DDTHH:MM:SS (NZT)
+String getNZTime(NTPClient &client) {
+  time_t rawTime = client.getEpochTime();
+  struct tm * ti;
+  ti = localtime(&rawTime);
+
+  char buf[25];
+  snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d:%02d",
+      ti->tm_year + 1900,
+      ti->tm_mon + 1,
+      ti->tm_mday,
+      ti->tm_hour,
+      ti->tm_min,
+      ti->tm_sec
+  );
+  return String(buf);
+}
+
+void setup() {
+  Serial.begin(9600);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWiFi connected!");
+  timeClient.begin();
+}
+
+void loop() {
+  if (Serial.available()) {
+    String rec = Serial.readStringUntil('\n');
+    rec.trim();
+    if (rec.startsWith("SEND")) {
+      timeClient.update();
+      String ts = getNZTime(timeClient);
+
+      String fullUrl = String(scriptUrl) + "?date=" + ts + "&" + rec.substring(5);
+      Serial.println("Full URL: " + fullUrl);
+
+      if (WiFi.status() == WL_CONNECTED) {
+        WiFiClientSecure client;
+        client.setInsecure();
+
+        HTTPClient http;
+        http.begin(client, fullUrl);
+
+        int httpCode = http.GET();
+        Serial.print("HTTP Response code: ");
+        Serial.println(httpCode);
+        String payload = http.getString();
+        Serial.println("Server response: " + payload);
+        http.end();
+      } else {
+        Serial.println("WiFi not connected!");
+      }
+    }
+  }
+}
