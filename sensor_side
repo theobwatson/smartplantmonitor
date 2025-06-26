@@ -1,0 +1,40 @@
+#include <DHT.h>
+
+#define DHTPIN 2
+#define DHTTYPE DHT11
+#define LDR_PIN A0
+#define SOIL_PIN A1
+
+DHT dht(DHTPIN, DHTTYPE);
+
+void setup() {
+  Serial.begin(9600);
+  dht.begin();
+  delay(2000);
+}
+
+void loop() {
+  float t = dht.readTemperature();
+  float h = dht.readHumidity();
+  int l = analogRead(LDR_PIN);
+  int m = analogRead(SOIL_PIN);
+
+  Serial.println("----- Sensor Readings -----");
+  Serial.print("Temperature: "); Serial.print(t); Serial.println(" C");
+  Serial.print("Humidity: ");    Serial.print(h); Serial.println(" %");
+  Serial.print("Light: ");       Serial.println(l);
+  Serial.print("Moisture: ");    Serial.println(m);
+
+  Serial.print("SEND temperature=");
+  Serial.print(t);
+  Serial.print("&humidity=");
+  Serial.print(h);
+  Serial.print("&light=");
+  Serial.print(l);
+  Serial.print("&moisture=");
+  Serial.println(m);
+
+  Serial.println("--------------------------\n");
+
+  delay(1200000);
+}
